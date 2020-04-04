@@ -13,7 +13,7 @@ export class NoteEditor extends moduleConnect(LitElement) {
 
   async firstUpdated() {
     this.apolloClient = this.request(ApolloClientModule.bindings.Client)
-    loadNotes()
+    this.loadNotes()
   }
 
   render() { 
