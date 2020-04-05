@@ -1,0 +1,170 @@
+import { LitElement, html, css } from 'lit-element';
+import { moduleConnect } from '@uprtcl/micro-orchestrator';
+import { ApolloClientModule } from '@uprtcl/graphql';
+import gql from 'graphql-tag'
+import '@material/mwc-button'
+import '@material/mwc-textfield'
+import '@material/mwc-textarea'
+
+export class NotesEditor extends moduleConnect(LitElement) {
+  static get properties() {
+    return {
+      listNotes: { type: Array },
+      editingNoteId: { type: String }
+    };
+  }
+
+  static get styles() {
+    return css`
+      .notes-happ {
+        display: flex;
+        padding: 50px;
+        align-items: center;
+        flex-direction: column;
+      }
+      
+      .note-card {
+        border: 1px solid lightgray;
+        border-radius: 4px;
+        padding: 0px 20px 20px;
+        margin-bottom: 20px;
+        width: 400px;
+      }
+      
+      .note-content {
+        margin-bottom: 20px;
+      }
+      
+      .note-form {
+        border: 1px solid lightgray;
+        border-radius: 4px;
+        padding: 0px 20px 20px;
+        margin-bottom: 20px;
+        width: 400px;
+      }
+      
+      .form-row {
+        display: flex;
+        margin-bottom: 20px;
+      }
+      
+      .form-row > label {
+        flex: 1
+      }
+      
+      .form-row > input {
+        flex: 4;
+      }
+      
+      .form-row > textarea {
+        flex: 4;
+      }
+    `;
+  }
+
+  async firstUpdated() {
+    this.apolloClient = this.request(ApolloClientModule.bindings.Client)
+    this.mode = 'Add'
+    this.loadNotes()
+  }
+
+  render() { 
+    if (this.listNotes === undefined ) {
+      return html`<p>Loading....</p>`
+    }
+    return html`
+    <div class='notes-happ'>
+      <h1>Notes hApp</h1>
+      ${this.renderEditNote({ title: '', content: '' })}
+      <div class='note-list'>
+        ${this.listNotes.map(note => this.renderNote(note))}
+      </div>
+    </div>
+    `;
+  }
+
+  renderNote (note) {
+    if (note.id === this.editingNoteId) {
+      this.mode = 'Update'
+      return this.renderEditNote(note)
+    }
+    this.mode = 'Add'
+    return html`
+      <div class='note-card'>
+        <h3>${note.title}</h3>
+        <div class='note-content'>${note.content}</div>
+        <mwc-button outlined label="Edit" @click=${() => this.editingNoteId=note.id}></mwc-button>
+        <mwc-button outlined label="Remove" @click=${() => this.removeNote(note)}></mwc-button>
+      </div>
+    `;
+  }
+
+  renderEditNote (note) {
+    return html`
+    <div class='note-form'>
+      <h3>${this.mode} Note</h3>
+      <div class='form-row'>
+        <mwc-textfield outlined label="Title" id="title" .value=${note.title} @change=${ e => { note.title = e.target.value }}></mwc-textfield>
+      </div>
+      <div class='form-row'>
+        <mwc-textarea outlined label="Content" id="content" .value=${note.content} @change=${ e => { note.content = e.target.value }}></mwc-textarea>
+      </div>
+      <div>
+        <mwc-button outlined label="${this.mode}" @click=${() => this.editNote(note)}></mwc-button>
+      </div>
+    </div>
+    `;
+  }
+
+  async loadNotes () {
+     const result = await this.apolloClient.query({ query: gql`{listNotes {id createdAt title content}}`})
+     console.log('result')
+     console.log(result)
+     this.listNotes = result.data.listNotes
+  }
+
+  async editNote (note) {
+    const noteInput = {"title": note.title, "content": note.content}
+    this.editingNoteId = ''
+    if (note.id === undefined) {
+      const newNote = await this.apolloClient.mutate({ mutation: gql`mutation CreateNote($noteInput: NoteInput) {
+        createNote (noteInput: $noteInput) {
+          id
+          createdAt 
+          title
+          content
+        }
+      }`, variables: {noteInput: noteInput}})
+      this.listNotes.push(newNote)
+      this.requestUpdate()
+    } else {
+      const existingNote = this.listNotes.find(listNote => listNote.id === note.id )
+      existingNote.title = note.title
+      existingNote.content = note.content
+      // Check result worked.
+      await this.apolloClient.mutate({ mutation: gql`mutation UpdateNote($id: String, $noteInput: NoteInput) {
+        updateNote (id: $id, noteInput: $noteInput) {
+          id
+          createdAt
+          title
+          content
+        }
+      }`, variables: {id: note.id, noteInput: noteInput}})
+      this.requestUpdate()
+    }
+  }
+
+  async removeNote (note) {
+    this.editingNoteId = ''
+    this.listNotes = this.listNotes.filter(listNote => listNote.id !== note.id )
+    await this.apolloClient.mutate({ mutation: gql`mutation RemoveNote($id: String) {
+      removeNote (id: $id) {
+        id
+        createdAt
+        title
+        content
+      }
+    }`, variables: {id: note.id}})
+    this.requestUpdate()
+  }
+}
