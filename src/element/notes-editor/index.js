@@ -52,15 +52,11 @@ export class NotesEditor extends moduleConnect(LitElement) {
         margin-bottom: 20px;
       }
       
-      .form-row > label {
-        flex: 1
-      }
-      
-      .form-row > input {
+      .form-row > mwc-textfield {
         flex: 4;
       }
       
-      .form-row > textarea {
+      .form-row > mwc-textarea {
         flex: 4;
       }
     `;
@@ -78,7 +74,6 @@ export class NotesEditor extends moduleConnect(LitElement) {
     }
     return html`
     <div class='notes-happ'>
-      <h1>Notes hApp</h1>
       ${this.renderEditNote({ title: '', content: '' })}
       <div class='note-list'>
         ${this.listNotes.map(note => this.renderNote(note))}
@@ -106,7 +101,7 @@ export class NotesEditor extends moduleConnect(LitElement) {
   renderEditNote (note) {
     return html`
     <div class='note-form'>
-      <h3>${this.mode} Note</h3>
+      <h3 class='red'>${this.mode} Note</h3>
       <div class='form-row'>
         <mwc-textfield outlined label="Title" id="title" .value=${note.title} @change=${ e => { note.title = e.target.value }}></mwc-textfield>
       </div>
