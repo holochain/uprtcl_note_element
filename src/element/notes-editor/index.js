@@ -5,6 +5,10 @@ import gql from 'graphql-tag'
 import '@material/mwc-button'
 import '@material/mwc-textfield'
 import '@material/mwc-textarea'
+import LIST_NOTES_QUERY from './graphql/listNotesQuery'
+import CREATE_NOTE_MUTATION from './graphql/createNoteMutation'
+import UPDATE_NOTE_MUTATION from './graphql/updateNoteMutation'
+import REMOVE_NOTE_MUTATION from './graphql/removeNoteMutation'
 
 export class NotesEditor extends moduleConnect(LitElement) {
   static get properties() {
@@ -110,14 +114,19 @@ export class NotesEditor extends moduleConnect(LitElement) {
         <mwc-textarea outlined label="Content" id="content" .value=${note.content} @change=${ e => { note.content = e.target.value }}></mwc-textarea>
       </div>
       <div>
-        <mwc-button outlined label="${this.mode}" @click=${() => this.editNote(note)}></mwc-button>
+        <mwc-button outlined label="${this.mode}" @click=${() => {
+            this.editNote(note)
+            this.shadowRoot.getElementById('title').value = ''
+            this.shadowRoot.getElementById('content').value = ''
+          }
+        }></mwc-button>
       </div>
     </div>
     `;
   }
 
   async loadNotes () {
-     const result = await this.apolloClient.query({ query: gql`{listNotes {id createdAt title content}}`})
+     const result = await this.apolloClient.query({ query: LIST_NOTES_QUERY})
      console.log('result')
      console.log(result)
      this.listNotes = result.data.listNotes
@@ -127,29 +136,14 @@ export class NotesEditor extends moduleConnect(LitElement) {
     const noteInput = {"title": note.title, "content": note.content}
     this.editingNoteId = ''
     if (note.id === undefined) {
-      const newNote = await this.apolloClient.mutate({ mutation: gql`mutation CreateNote($noteInput: NoteInput) {
-        createNote (noteInput: $noteInput) {
-          id
-          createdAt 
-          title
-          content
-        }
-      }`, variables: {noteInput: noteInput}})
-      this.listNotes.push(newNote)
+      const newNote = await this.apolloClient.mutate({ mutation: CREATE_NOTE_MUTATION, variables: {noteInput: noteInput}})
+      this.listNotes.splice(0, 0, newNote.data.createNote)
       this.requestUpdate()
     } else {
       const existingNote = this.listNotes.find(listNote => listNote.id === note.id )
       existingNote.title = note.title
       existingNote.content = note.content
-      // Check result worked.
-      await this.apolloClient.mutate({ mutation: gql`mutation UpdateNote($id: String, $noteInput: NoteInput) {
-        updateNote (id: $id, noteInput: $noteInput) {
-          id
-          createdAt
-          title
-          content
-        }
-      }`, variables: {id: note.id, noteInput: noteInput}})
+      await this.apolloClient.mutate({ mutation: UPDATE_NOTE_MUTATION, variables: {id: note.id, noteInput: noteInput}})
       this.requestUpdate()
     }
   }
@@ -157,14 +151,7 @@ export class NotesEditor extends moduleConnect(LitElement) {
   async removeNote (note) {
     this.editingNoteId = ''
     this.listNotes = this.listNotes.filter(listNote => listNote.id !== note.id )
-    await this.apolloClient.mutate({ mutation: gql`mutation RemoveNote($id: String) {
-      removeNote (id: $id) {
-        id
-        createdAt
-        title
-        content
-      }
-    }`, variables: {id: note.id}})
+    await this.apolloClient.mutate({ mutation: REMOVE_NOTE_MUTATION, variables: {id: note.id}})
     this.requestUpdate()
   }
 }
