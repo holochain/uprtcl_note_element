@@ -21,7 +21,7 @@ export class NoteEditor extends moduleConnect(LitElement) {
       return html`<p>No Notes</p>`
     }
     return html`
-      ${this.listNotes.map(note => this.renderNote(note))}
+      ${this.listNotes.listNotes.map(note => this.renderNote(note))}
       ${this.renderEditNote({ title: '', content: '' })}
     `;
   }
@@ -33,7 +33,7 @@ export class NoteEditor extends moduleConnect(LitElement) {
     return html`
       <div className='note-card' data-testid='note-card'>
         <h3>${note.title}</h3>
-        <div className='note-content'>${note.content}</div>
+        <div className='note-content'>${JSON.stringify(note)}</div>
         <button className='button' @click=${() => this.editingNoteId=note.id}>Edit</button>
         <button @click=${() => removeNote({ variables: { note } })}>Remove</button>
       </div>
@@ -49,7 +49,10 @@ export class NoteEditor extends moduleConnect(LitElement) {
   }
 
   async loadNotes () {
-    this.listNotes = await this.apolloClient.query({ query: gql`{listNotes {id}}`})
+     const result = await this.apolloClient.query({ query: gql`{listNotes {id}}`})
+     console.log('result')
+     console.log(result)
+     this.listNotes = result.data
   }
 
   async editNote (note) {
